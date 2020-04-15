@@ -1,0 +1,27 @@
+#
+# Template Config for OSS Server
+#
+
+
+accesskey: root
+accesssecret: rootpw
+# Preset bucket
+bucket: mybucket
+# direct : Direct output file bytes
+# redirect : redirect with staticFS (not implemented)
+outputmode: direct
+# Serve Address
+serveaddress: '0.0.0.0:8022'
+# Public resource base url
+baseurl: 'http://localhost:8022'
+# Path to save upload file
+storepath: './store'
+
+# Data provider
+provider:
+  # yaml : use yaml to save object
+  # postgres : use postgres db (not implemented)
+  type: 'yaml'
+
+  # if using yaml , the yaml file used
+  filepath: './objects.yaml'
