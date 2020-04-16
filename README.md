@@ -67,3 +67,8 @@ You can use object keys like these as it seems like the file in directory
 
 `avatars/dormao.png`
 
+## License
+[MIT License](https://www.mit-license.org/)
+
+## Others
+[中文](README_cn.md)
