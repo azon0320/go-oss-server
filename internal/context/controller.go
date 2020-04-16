@@ -26,8 +26,8 @@ func (ctrl *Controller) GetFullUrl(object string) string {
 func (ctrl *Controller) GetStatic(filename string) string {
 	return fmt.Sprintf("%s/%s/%s", config.Config.BaseURL, consts.StaticFSRouteName, strings.Trim(filename, ctrl.FileProvider.FileSeparator()))
 }
-func (ctrl *Controller) Init() {
-	ctrl.DataProvider.Init()
+func (ctrl *Controller) Init() error {
+	return ctrl.DataProvider.Init()
 }
 
 func (ctrl *Controller) RegisterRoutes(gin *gin.Engine) {

@@ -16,8 +16,10 @@ var Config = struct {
 	BaseURL      string
 	StorePath    string
 	Provider     struct {
-		Type     string
-		FilePath string
+		Type          string
+		FilePath      string
+		PostgresURI   string
+		DbAutoMigrate bool
 	}
 }{}
 

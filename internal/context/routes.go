@@ -30,9 +30,9 @@ func (ctrl *Controller) ginUploadObject(c *gin.Context) {
 	var objectName = strings.Trim(c.PostForm("object"), "/")
 	var ak = c.PostForm("accesskey")
 	var secret = c.PostForm("secret")
-	if ak != config.Config.AccessKey || secret != config.Config.AccessSecret {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, &models.BaseResponse{Code: http.StatusUnauthorized, Msg: "Unauthorized"})
-		return
+	var bkName = c.PostForm("bucket")
+	if len(bkName) == 0 {
+		bkName = config.Config.Bucket
 	}
 	if objectName == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, &models.BaseResponse{Code: http.StatusBadRequest, Msg: "object name can not be empty"})
@@ -49,12 +49,25 @@ func (ctrl *Controller) ginUploadObject(c *gin.Context) {
 		ext = "." + ext
 	}
 	var fullFileName = fmt.Sprintf("%s%s", rand.String(), ext)
+
+	err = ctrl.DataProvider.PutObject(objectName, fullFileName, database.SetUpOption{
+		RetrieveOption: database.RetrieveOption{
+			Bucket:       &bkName,
+			AccessKey:    ak,
+			AccessSecret: secret,
+		},
+	})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
 	err = c.SaveUploadedFile(file, ctrl.FileProvider.Path(fullFileName))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, models.BaseResponse{Code: http.StatusInternalServerError, Msg: err.Error()})
 		return
 	}
-	ctrl.DataProvider.PutObject(objectName, fullFileName, database.Options{})
+
 	ctrl.DataProvider.Save()
 	c.JSON(http.StatusOK, &models.BaseResponse{
 		Code: http.StatusOK, Msg: "",
@@ -65,22 +78,27 @@ func (ctrl *Controller) ginUploadObject(c *gin.Context) {
 }
 
 func (ctrl *Controller) ginPublicGetResource(c *gin.Context) {
-	_ = c.Param("bucket")
+	var bkName = c.Param("bucket")
 	var objectName = strings.Trim(c.Param("object"), "/")
 	var path string
 	if objectName == "" {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	path, err := ctrl.DataProvider.GetObject(objectName)
+	path, err := ctrl.DataProvider.GetObject(objectName, database.RetrieveOption{
+		Bucket: &bkName,
+	})
 	if err != nil {
 		ctrl.Logger.Infof("object key (%s) not found", objectName)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 	if config.Config.OutputMode == consts.OutputModeReDirect {
-		c.Redirect(http.StatusTemporaryRedirect, ctrl.GetStatic(path))
-	} else {
+		// TODO disabled now, reason: controller.go:59
+		ctrl.Logger.Warnf("Redirect now disabled! please use ( outputmode:'direct' ) in config file!!")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		//c.Redirect(http.StatusTemporaryRedirect, ctrl.GetStatic(path))
+	} else if config.Config.OutputMode == consts.OutputModeDirect {
 		var fPath = ctrl.FileProvider.Path(path)
 		f, err := os.Open(fPath)
 		if err != nil {

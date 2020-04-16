@@ -2,16 +2,23 @@ package database
 
 import "time"
 
-type Options struct {
-	ExpiredAt *time.Duration
+type RetrieveOption struct {
+	Bucket       *string
+	AccessKey    string
+	AccessSecret string
+}
+
+type SetUpOption struct {
+	RetrieveOption
+	ExpiredAt *time.Time
 }
 
 type Provider interface {
 	Init() error
 	Save() error
 	SetBucket(bucketName string) error
-	PutObject(objectName, filename string, options Options) error
-	GetObject(objectName string) (string, error)
+	PutObject(objectName, filename string, options SetUpOption) error
+	GetObject(objectName string, option RetrieveOption) (string, error)
 	ListObject(objectPrefix string) map[string]string
 	RemoveObject(objectName string) error
 }

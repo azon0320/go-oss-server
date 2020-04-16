@@ -51,7 +51,7 @@ func (prov *YamlProvider) SetBucket(bucketName string) error {
 	return nil
 }
 
-func (prov *YamlProvider) GetObject(objectName string) (path string, err error) {
+func (prov *YamlProvider) GetObject(objectName string, option RetrieveOption) (path string, err error) {
 	for _, f := range prov.Store {
 		if f.Object == objectName {
 			path = f.Path
@@ -90,7 +90,10 @@ func (prov YamlProvider) ListObject(prefix string) map[string]string {
 	return result
 }
 
-func (prov *YamlProvider) PutObject(objectName, filename string, options Options) error {
+func (prov *YamlProvider) PutObject(objectName, filename string, option SetUpOption) error {
+	if option.AccessKey != config.Config.AccessKey || option.AccessSecret != config.Config.AccessSecret {
+		return errors.New(fmt.Sprintf("access denied for bucket (%s)", prov.Bucket))
+	}
 	prov.RemoveObject(objectName)
 	prov.Store[objectName] = YamlFile{
 		Object: objectName,

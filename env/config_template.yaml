@@ -23,5 +23,12 @@ provider:
   # postgres : use postgres db (not implemented)
   type: 'yaml'
 
-  # if using yaml , the yaml file used
+  # if using yaml , specify the yaml file
   filepath: './objects.yaml'
+
+  # if using postgres, specify db uri
+  # format: see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+  postgresuri: 'postgresql://root:rootpw@localhost:5432/testoss_db?sslmode=disable'
+
+  # if using postgres, set gorm auto migrate ( auto create tables )
+  dbautomigrate: false
