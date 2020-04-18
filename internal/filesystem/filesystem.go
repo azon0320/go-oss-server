@@ -23,7 +23,8 @@ func (f *FileSystem) Path(subPath string) string {
 }
 
 func (f *FileSystem) FileSeparator() string {
-	return string(filepath.Separator)
+	//return string(filepath.Separator)
+	return "/"
 }
 
 func (f *FileSystem) Exists(sub string) bool {

@@ -60,7 +60,7 @@ func (p *PostgresProvider) SetBucket(bucket string) error {
 func (p *PostgresProvider) PutObject(object, filename string, option SetUpOption) error {
 	type KeyPairBucket struct {
 		models.FieldBucket
-		KeyPair *models.FieldKeyPair `gorm:"FOREIGNKEY:key_pair_id"`
+		KeyPair *models.FieldKeyPair `gorm:"FOREIGNKEY:KeyPairId"`
 	}
 	var bkName = p.Bucket
 	if option.Bucket != nil {
@@ -97,11 +97,11 @@ func (p *PostgresProvider) GetObject(object string, option RetrieveOption) (stri
 	}
 	var db = p.DB
 	var associationRecord AssociationObject
-	db.Set("gorm:autoload", true)
-	db.Joins(arraysImplode(" ", []string{
-		"INNER JOIN buckets ON buckets.id = objects.bucket_id",
-	})).Where("buckets.name = ? AND objects.name = ?", bkName, object)
-	notFound := db.First(&associationRecord).RecordNotFound()
+	notFound := db.
+		Set("gorm:auto_preload", true).
+		Joins("INNER JOIN buckets ON buckets.id = objects.bucket_id").
+		Where("buckets.name = ? AND objects.name = ?", bkName, object).
+		First(&associationRecord).RecordNotFound()
 	if notFound {
 		return "", errors.New(fmt.Sprintf("object (%s) not found", object))
 	} else if associationRecord.ExpiredAt != nil && associationRecord.ExpiredAt.After(time.Now()) {

@@ -104,12 +104,15 @@ func (ctrl *Controller) ginPublicGetResource(c *gin.Context) {
 		var fPath = ctrl.FileProvider.Path(path)
 		f, err := os.Open(fPath)
 		if err != nil {
+			ctrl.Logger.Errorf("error open file: %s", err)
 			c.AbortWithStatus(http.StatusNotFound)
+			return
 		}
 		defer f.Close()
 		_, err = io.Copy(c.Writer, f)
 		if err != nil {
-			ctrl.Logger.Errorf("eror while echo file bytes: %s", err)
+			ctrl.Logger.Errorf("error while echo file bytes: %s", err)
+			c.AbortWithStatus(http.StatusNotFound)
 		}
 	}
 }
