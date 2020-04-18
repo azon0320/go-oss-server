@@ -60,18 +60,20 @@ func (p *PostgresProvider) SetBucket(bucket string) error {
 func (p *PostgresProvider) PutObject(object, filename string, option SetUpOption) error {
 	type KeyPairBucket struct {
 		models.FieldBucket
-		KeyPair *models.FieldKeyPair `gorm:"FOREIGNKEY:KeyPairId" json:"key_pair"`
+		KeyPair *models.FieldKeyPair `gorm:"FOREIGNKEY:key_pair_id"`
 	}
 	var bkName = p.Bucket
 	if option.Bucket != nil {
 		bkName = *option.Bucket
 	}
 	var bucket KeyPairBucket
-	p.DB.Set("gorm:autoload", true).Joins("INNER JOIN key_pairs ON key_pairs.id = buckets.key_pair_id")
-	var notFound = p.DB.First(&bucket, "buckets.name = ?", bkName).RecordNotFound()
+	var db = p.DB.Set("gorm:auto_preload", true)
+	notFound := db.First(&bucket, "buckets.name = ?", bkName).RecordNotFound()
 	if notFound {
 		return errors.New(fmt.Sprintf("bucket (%s) not found", bkName))
-	} else if bucket.KeyPair != nil && (bucket.KeyPair.AccessKey != option.AccessKey || bucket.KeyPair.AccessSecret != option.AccessSecret) {
+	} else if bucket.KeyPair == nil {
+		return errors.New(fmt.Sprintf("access denied by bucket (%s): unbound access keypair", bkName))
+	} else if bucket.KeyPair.AccessKey != option.AccessKey || bucket.KeyPair.AccessSecret != option.AccessSecret {
 		return errors.New(fmt.Sprintf("access denied by bucket (%s)", bkName))
 	}
 	var obj models.FieldObject

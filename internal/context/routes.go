@@ -58,7 +58,9 @@ func (ctrl *Controller) ginUploadObject(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, err.Error())
+		c.AbortWithStatusJSON(http.StatusBadRequest, &models.BaseResponse{
+			Code: http.StatusBadRequest, Msg: err.Error(),
+		})
 		return
 	}
 
