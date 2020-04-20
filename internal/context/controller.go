@@ -35,6 +35,8 @@ func (ctrl *Controller) RegisterRoutes(gin *gin.Engine) {
 	// @apiGroup 1.Upload
 	// @apiVersion 1.0.0
 
+	gin.OPTIONS("/", ctrl.ginOptions)
+
 	// @apiParam {String} bucket The oss bucket
 	// @apiParam {String} object The object key
 	// @apiParam {String} accesskey The access key

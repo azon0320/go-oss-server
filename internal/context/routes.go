@@ -116,3 +116,7 @@ func (ctrl *Controller) ginPublicGetResource(c *gin.Context) {
 		}
 	}
 }
+
+func (ctrl *Controller) ginOptions(c *gin.Context) {
+	c.Status(http.StatusOK)
+}
