@@ -64,7 +64,9 @@ func (prov *YamlProvider) GetObject(objectName string, option RetrieveOption) (p
 	return path, err
 }
 
-func (prov *YamlProvider) RemoveObject(objectName string) error {
+func (prov *YamlProvider) RemoveObject(objectName string, option RetrieveOption) error {
+	err := prov.validateAuth(option)
+	if err != nil { return err }
 	var key string
 	for k, f := range prov.Store {
 		if f.Object == objectName {
@@ -80,27 +82,36 @@ func (prov *YamlProvider) RemoveObject(objectName string) error {
 	}
 }
 
-func (prov YamlProvider) ListObject(prefix string) map[string]string {
-	var result = make(map[string]string, 0)
-	for k, f := range prov.Store {
+func (prov YamlProvider) ListObject(prefix string, option RetrieveOption) (interface{}, error) {
+	err := prov.validateAuth(option)
+	if err != nil { return nil, err }
+	var result = make([]string, 0)
+	for _, f := range prov.Store {
 		if strings.HasPrefix(f.Object, prefix) {
-			result[k] = f.Path
+			result = append(result, f.Object)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (prov *YamlProvider) PutObject(objectName, filename string, option SetUpOption) error {
-	if option.AccessKey != config.Config.AccessKey || option.AccessSecret != config.Config.AccessSecret {
-		return errors.New(fmt.Sprintf("access denied for bucket (%s)", prov.Bucket))
-	}
-	prov.RemoveObject(objectName)
+	err := prov.validateAuth(option.RetrieveOption)
+	if err != nil { return err }
+	prov.RemoveObject(objectName, option.RetrieveOption)
 	prov.Store[objectName] = YamlFile{
 		Object: objectName,
 		Path:   filename,
 		Bucket: prov.Bucket,
 	}
 	return nil
+}
+
+func (prov *YamlProvider) validateAuth(option RetrieveOption) error{
+	if option.AccessKey != config.Config.AccessKey || option.AccessSecret != config.Config.AccessSecret {
+		return errors.New(fmt.Sprintf("access denied for bucket (%s)", prov.Bucket))
+	}else{
+		return nil
+	}
 }
 
 func NewYamlDataProvider() *YamlProvider {

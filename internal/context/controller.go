@@ -30,33 +30,64 @@ func (ctrl *Controller) Init() error {
 	return ctrl.DataProvider.Init()
 }
 
-func (ctrl *Controller) RegisterRoutes(gin *gin.Engine) {
-	// @api {POST} /:bucket/:object
-	// @apiGroup 1.Upload
-	// @apiVersion 1.0.0
+func (ctrl *Controller) RegisterRoutes(router *gin.Engine) {
 
-	gin.OPTIONS("/", ctrl.ginOptions)
+	router.OPTIONS("/", ctrl.ginOptions)
 
-	// @apiParam {String} bucket The oss bucket
-	// @apiParam {String} object The object key
-	// @apiParam {String} accesskey The access key
-	// @apiParam {String} secret The access secret
-	// @apiParam {Blob} file The upload file
-	// @apiSuccess {Number} code The return code (most sync with HTTP status code)
-	// @apiSuccess {String} msg The return msg (blank when no error)
-	// @apiSuccess {Object} result The upload result
-	// @apiSuccess {String} result.object The upload object key
-	// @apiSuccess {String} result.url The public url of the uploaded file
-	gin.POST("*object", ctrl.ginUploadObject)
 
-	// @api {POST} /:bucket/:object
-	// @apiGroup 1.Upload
+	router.POST("/", func(c *gin.Context) {
+		var queries = c.Request.URL.Query()
+		if queries.Get("list") != "" {
+			// @api {POST} /?list={list} Query objects by input object prefix
+			// @apiGroup 1.Object
+			// @apiVersion 1.0.0
+			// @apiParam {String} bucket The oss bucket
+			// @apiParam {String} accesskey The access key
+			// @apiParam {String} secret The access secret
+			// @apiParam {String} list The object prefix
+			// @apiParam {Blob} file The upload file
+			// @apiSuccess {Number} code The return code (most sync with HTTP status code)
+			// @apiSuccess {String} msg The return msg (blank when no error)
+			// @apiSuccess {Array} result The retrieved objects
+			ctrl.ginListObject(c)
+		}else {
+			// @api {POST} / Upload object
+			// @apiGroup 1.Object
+			// @apiVersion 1.0.0
+			// @apiParam {String} bucket The oss bucket
+			// @apiParam {String} object The object key
+			// @apiParam {String} accesskey The access key
+			// @apiParam {String} secret The access secret
+			// @apiParam {Blob} file The upload file
+			// @apiSuccess {Number} code The return code (most sync with HTTP status code)
+			// @apiSuccess {String} msg The return msg (blank when no error)
+			// @apiSuccess {Object} result The upload result
+			// @apiSuccess {String} result.object The upload object key
+			// @apiSuccess {String} result.url The public url of the uploaded file
+			ctrl.ginUploadObject(c)
+		}
+	})
+
+	// @api {GET} /:bucket/:object
+	// @apiGroup 1.Object
 	// @apiVersion 1.0.0
 
 	// @apiParam {String} bucket The oss bucket
 	// @apiParam {String} object The object key
 	// @apiParam {Blob} The data
-	gin.GET(":bucket/*object", ctrl.ginPublicGetResource)
+	router.GET(":bucket/*object", ctrl.ginPublicGetResource)
+
+	// @api {DELETE} / Delete object by object key
+	// @apiGroup 1.Object
+	// @apiVersion 1.0.0
+
+	// @apiParam {String} bucket The oss bucket
+	// @apiParam {String} object The object key
+	// @apiParam {String} accesskey The access key
+	// @apiParam {String} secret The access secret
+	// @apiSuccess {Number} code The return code (most sync with HTTP status code)
+	// @apiSuccess {String} msg The return msg (blank when no error)
+	router.DELETE("/", ctrl.ginDeleteObject)
 
 	/* TODO conflicted with :bucket/*object closing
 	if config.Config.OutputMode == consts.OutputModeReDirect {

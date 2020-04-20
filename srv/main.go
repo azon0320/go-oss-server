@@ -5,9 +5,11 @@ import (
 	"github.com/dormao/go-oss-server/internal/context/config"
 	"github.com/dormao/go-oss-server/internal/context/database"
 	"github.com/dormao/go-oss-server/internal/filesystem"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -34,7 +36,14 @@ func main() {
 		ctrl.Logger.Errorf("error while init controller: %s", err)
 		return
 	}
+	var corsHosts = cors.New(cors.Config{
+		AllowOrigins:     strings.Split(conf.CORSHosts, ","),
+		AllowMethods:     []string{"GET", "PATCH", "POST", "DELETE", "OPTION", "PUT"},
+		AllowHeaders:     []string{"*"},
+		AllowCredentials: true,
+	})
 	var engine = gin.Default()
+	engine.Use(corsHosts)
 	ctrl.RegisterRoutes(engine)
 	engine.Run(conf.ServeAddress)
 }

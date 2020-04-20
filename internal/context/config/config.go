@@ -11,6 +11,7 @@ var Config = struct {
 	AccessKey    string
 	AccessSecret string
 	Bucket       string
+	CORSHosts	 string
 	OutputMode   string
 	ServeAddress string
 	BaseURL      string

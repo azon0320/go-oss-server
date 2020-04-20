@@ -8,13 +8,72 @@ import (
 	"github.com/dormao/go-oss-server/internal/context/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 )
 
+func (ctrl *Controller) ginDeleteObject(c *gin.Context){
+	var ak = c.PostForm("accesskey")
+	var secret = c.PostForm("secret")
+	var bkName = c.PostForm("bucket")
+	var objectName = strings.Trim(c.PostForm("object"), "/")
+	if len(bkName) == 0 {
+		bkName = config.Config.Bucket
+	}
+	err := ctrl.DataProvider.RemoveObject(objectName, database.RetrieveOption{
+		AccessKey: ak, AccessSecret: secret, Bucket: &bkName,
+	})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, &models.BaseResponse{
+			Code: http.StatusBadRequest, Msg: err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, &models.BaseResponse{
+		Code: http.StatusOK, Msg: "",
+	})
+}
+
+func (ctrl *Controller) ginListObject(c *gin.Context){
+	var ak = c.PostForm("accesskey")
+	var secret = c.PostForm("secret")
+	var bkName = c.PostForm("bucket")
+	if len(bkName) == 0 {
+		bkName = config.Config.Bucket
+	}
+	var objectPref = c.Request.URL.Query().Get("list")
+	var result, err = ctrl.DataProvider.ListObject(objectPref, database.RetrieveOption{
+		Bucket:       &bkName,
+		AccessKey:    ak,
+		AccessSecret: secret,
+	})
+	if err != nil {
+		logrus.Errorf("error while listing objects in bucket (%s): %s", bkName, err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, &models.BaseResponse{
+			Code: http.StatusBadRequest, Msg: err.Error(),
+		})
+		return
+	}
+	var resultList = result.([]string)
+	c.JSON(http.StatusOK, &models.BaseResponse{
+		Code: http.StatusOK, Msg: "", Result: gin.H{
+			"count": len(resultList),
+			"result": &resultList,
+		},
+	})
+}
+
 func (ctrl *Controller) ginUploadObject(c *gin.Context) {
+
+	var queries = c.Request.URL.Query()
+	if queries.Get("list") != "" {
+		ctrl.ginListObject(c)
+		return
+	}
+
 	type UploadResult struct {
 		Object string `json:"object"`
 		URL    string `json:"url"`
@@ -27,9 +86,9 @@ func (ctrl *Controller) ginUploadObject(c *gin.Context) {
 		}
 		return ext
 	}
-	var objectName = strings.Trim(c.PostForm("object"), "/")
 	var ak = c.PostForm("accesskey")
 	var secret = c.PostForm("secret")
+	var objectName = strings.Trim(c.PostForm("object"), "/")
 	var bkName = c.PostForm("bucket")
 	if len(bkName) == 0 {
 		bkName = config.Config.Bucket
@@ -111,6 +170,7 @@ func (ctrl *Controller) ginPublicGetResource(c *gin.Context) {
 		defer f.Close()
 		_, err = io.Copy(c.Writer, f)
 		if err != nil {
+			// TODO will occur error when user cancel binary download
 			ctrl.Logger.Errorf("error while echo file bytes: %s", err)
 			c.AbortWithStatus(http.StatusNotFound)
 		}

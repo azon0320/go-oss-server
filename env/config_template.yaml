@@ -16,7 +16,8 @@ serveaddress: '0.0.0.0:8022'
 baseurl: 'http://localhost:8022'
 # Path to save upload file
 storepath: './store'
-
+# CORS Hosts
+corshosts: '*'
 # Data provider
 provider:
   # yaml : use yaml to save object

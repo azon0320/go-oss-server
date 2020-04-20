@@ -7,8 +7,14 @@ import (
 	"github.com/dormao/go-oss-server/internal/context/database/models"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"strings"
 	"time"
 )
+
+type KeyPairBucket struct {
+	models.FieldBucket
+	KeyPair *models.FieldKeyPair `gorm:"FOREIGNKEY:KeyPairId"`
+}
 
 type PostgresProvider struct {
 	Bucket      string
@@ -58,24 +64,8 @@ func (p *PostgresProvider) SetBucket(bucket string) error {
 }
 
 func (p *PostgresProvider) PutObject(object, filename string, option SetUpOption) error {
-	type KeyPairBucket struct {
-		models.FieldBucket
-		KeyPair *models.FieldKeyPair `gorm:"FOREIGNKEY:KeyPairId"`
-	}
-	var bkName = p.Bucket
-	if option.Bucket != nil {
-		bkName = *option.Bucket
-	}
-	var bucket KeyPairBucket
-	var db = p.DB.Set("gorm:auto_preload", true)
-	notFound := db.First(&bucket, "buckets.name = ?", bkName).RecordNotFound()
-	if notFound {
-		return errors.New(fmt.Sprintf("bucket (%s) not found", bkName))
-	} else if bucket.KeyPair == nil {
-		return errors.New(fmt.Sprintf("access denied by bucket (%s): unbound access keypair", bkName))
-	} else if bucket.KeyPair.AccessKey != option.AccessKey || bucket.KeyPair.AccessSecret != option.AccessSecret {
-		return errors.New(fmt.Sprintf("access denied by bucket (%s)", bkName))
-	}
+	bucket, err := p.validateAuth(option.RetrieveOption)
+	if err != nil { return err }
 	var obj models.FieldObject
 	obj.Name = object
 	obj.Path = filename
@@ -110,26 +100,47 @@ func (p *PostgresProvider) GetObject(object string, option RetrieveOption) (stri
 	return associationRecord.Path, nil
 }
 
-func (p *PostgresProvider) RemoveObject(objectName string) error {
-	return p.DB.Delete(&models.FieldObject{}, "objects.name = ?", objectName).Error
+func (p *PostgresProvider) RemoveObject(objectName string, option RetrieveOption) error {
+	buck, err := p.validateAuth(option)
+	if err != nil { return err }
+	return p.DB.Delete(&models.FieldObject{}, "objects.name = ? and objects.bucket_id = ?", objectName, buck.ID).Error
 }
 
 func (p *PostgresProvider) Save() error {
 	return nil
 }
 
-func (p *PostgresProvider) ListObject(objectPrefix string) map[string]string {
-	// TODO Regex Query
-	return map[string]string{}
+func (p *PostgresProvider) ListObject(objectPrefix string, option RetrieveOption) (interface{}, error) {
+	buck, err := p.validateAuth(option)
+	if err != nil { return map[string]string{} , err}
+	var db = p.DB.Joins("INNER JOIN buckets ON buckets.id = objects.bucket_id")
+	var objectes []models.FieldObject
+	db.Where(`buckets.name = ? AND objects.name ~ ?`, buck.Name, fmt.Sprintf("^%s/", strings.Trim(objectPrefix, "/"))).Find(&objectes)
+	var result = make([]string, 0)
+	for _, v := range objectes {
+		result = append(result, v.Name)
+	}
+	return result, nil
 }
 
-func arraysImplode(glue string, stack []string) (out string) {
-	for index, v := range stack {
-		if index == len(stack)-1 {
-			out += v
-		} else {
-			out += v + glue
-		}
+func (p *PostgresProvider) validateAuth(option RetrieveOption) (*KeyPairBucket, error){
+	var bkName = p.Bucket
+	if option.Bucket != nil {
+		bkName = *option.Bucket
 	}
-	return out
+	var bucket KeyPairBucket
+	var db = p.DB.Set("gorm:auto_preload", true)
+	notFound := db.First(&bucket, "buckets.name = ?", bkName).RecordNotFound()
+	if notFound {
+		return nil, errors.New(fmt.Sprintf("bucket (%s) not found", bkName))
+	} else if bucket.KeyPair == nil {
+		return nil, errors.New(fmt.Sprintf("access denied by bucket (%s): unbound access keypair", bkName))
+	} else if bucket.KeyPair.AccessKey != option.AccessKey || bucket.KeyPair.AccessSecret != option.AccessSecret {
+		return nil, errors.New(fmt.Sprintf("access denied by bucket (%s)", bkName))
+	}
+	if option.AccessKey != bucket.KeyPair.AccessKey || option.AccessSecret != bucket.KeyPair.AccessSecret {
+		return nil, errors.New(fmt.Sprintf("access denied by bucket (%s)", p.Bucket))
+	}else{
+		return &bucket, nil
+	}
 }
